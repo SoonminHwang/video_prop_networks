@@ -55,8 +55,19 @@ if __name__ == '__main__':
 	args       = parse_args()
 	args.input = osp.abspath(args.input)
 
+	log.info("Evaluation sequences: %s" % os.listdir(args.input))
+
+	import pdb
+	pdb.set_trace()
+
+
 	db_eval_dict = db_eval(osp.basename(args.input),
 			os.listdir(args.input),osp.dirname(args.input),args.metrics)
+
+
+	import pdb
+	pdb.set_trace()
+
 
 	log.info("Saving results in: %s"%osp.join(
 			args.output,osp.basename(args.input))+".h5")

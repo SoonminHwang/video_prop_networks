@@ -20,8 +20,9 @@ def _unpickle_method(func_name, obj):
 
 #The copyreg module offers a way to define functions used while pickling specific objects
 # Requires to install future module
-import copyreg, types
-copyreg.pickle(types.MethodType, _pickle_method, _unpickle_method)
+# import copyreg, types
+import copy_reg, types
+copy_reg.pickle(types.MethodType, _pickle_method, _unpickle_method)
 
 
 def map_parallel(func,args,n_jobs=32):

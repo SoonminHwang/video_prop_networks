@@ -87,10 +87,12 @@ if __name__ == '__main__':
 		for seqname in f:
 			seqs.append(seqname[:-1])
 
-	db_eval_dict = db_read_eval(technique,raw_eval=False, inputdir=osp.dirname(args.input))
+	log.info("Evaluation sequences: %s" % os.listdir(args.input.split('.')[0]))
+
+	db_eval_dict = db_read_eval(technique, sequence=os.listdir(args.input.split('.')[0]), raw_eval=False, inputdir=osp.dirname(args.input))
 
 	db_benchmark = db_read_benchmark()
-	db_sequences = db_read_sequences()
+	# db_sequences = db_read_sequences()
 
 	log.info("Displaying evaluation of: %s"%osp.basename(args.input))
 
@@ -101,8 +103,10 @@ if __name__ == '__main__':
 		X.append(db_eval_dict[technique][key].values())
 
 	X = np.hstack(X)[:,:7]
-	for s,row in zip(db_sequences,X):
-		table.add_row([s.name]+ ["{: .3f}".format(n) for n in row])
+	for name,row in zip(db_eval_dict[technique]['J'].keys(),X):
+		table.add_row([name]+ ["{: .3f}".format(n) for n in row])
+	# for s,row in zip(db_sequences,X):
+	# 	table.add_row([s.name]+ ["{: .3f}".format(n) for n in row])
 
 	table.add_row(['Average'] +
 			["{: .3f}".format(n) for n in np.nanmean(X,axis=0)])

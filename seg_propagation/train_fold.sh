@@ -8,6 +8,7 @@
  # ---------------------------------------------------------------------------
 
 set -e
+set -x
 
 FOLDID=$1
 TRAIN_LOG_DIR="../data/training_data/training_logs/"
@@ -18,7 +19,16 @@ do
   echo $FOLDID
   echo $STAGEID
   echo $LOG_FILE
-  python train_online_seg.py $FOLDID $STAGEID 2>&1 | tee ${LOG_FILE} || exit 1&&
-  python select_model.py $FOLDID $STAGEID || exit 1 &&
-  python run_segmentation.py $STAGEID $FOLDID || exit 1
+
+  if [ $# -eq 2 ]
+  then
+    python train_online_seg.py $FOLDID $STAGEID $2
+  else
+    python train_online_seg.py $FOLDID $STAGEID
+  fi
+  
+  # python select_model.py $FOLDID $STAGEID || exit 1 &&
+  # python run_segmentation.py $STAGEID $FOLDID || exit 1
 done
+
+set +x

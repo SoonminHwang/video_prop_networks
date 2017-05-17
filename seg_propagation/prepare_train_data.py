@@ -103,80 +103,88 @@ def convert_to_spixel_gt(img_gt, spixel_indices):
 
 spixel_feat_net = load_spixel_feature_model()
 
-# Iterate over all sequences
-with open(seq_list_file,'r') as f:
-    for seq in f:
-        seq = seq[:-1]
-        seq_dir = image_folder + seq + '/';
-        seq_gt_dir = gt_folder + seq + '/'
+try:
 
-        # Iterate over all frames in each sequence
-        frame_no = 0
-        all_frame_features = None
-        all_frame_spixels = None
-        all_frame_gt = None
-        spixel_gt = None
-        print(seq)
+    # Iterate over all sequences
+    with open(seq_list_file,'r') as f:
+        for seq in f:
+            seq = seq[:-1]
+            seq_dir = image_folder + seq + '/';
+            seq_gt_dir = gt_folder + seq + '/'
 
-        while(True):
-            print(frame_no)
+            # Iterate over all frames in each sequence
+            frame_no = 0
+            all_frame_features = None
+            all_frame_spixels = None
+            all_frame_gt = None
+            spixel_gt = None
+            print(seq)
 
-            # Prepare superpixels, their features and GT files
-            img_file = seq_dir + str(frame_no).zfill(5) + '.jpg'
-            if os.path.isfile(img_file):
-                img = Image.open(img_file)
+            while(True):
+                print(frame_no)
 
-		        # Convert image into YUV space
-                ycbcr = img.convert('YCbCr')
-                I = np.ndarray((img.size[1], img.size[0], 3),
-                               'u1', ycbcr.tobytes())
+                # Prepare superpixels, their features and GT files
+                img_file = seq_dir + str(frame_no).zfill(5) + '.jpg'
+                if os.path.isfile(img_file):
+                    img = Image.open(img_file)
 
-		        # Extract image features
-                img_features = extract_image_features(I, frame_no)
+    		        # Convert image into YUV space
+                    ycbcr = img.convert('YCbCr')
+                    I = np.ndarray((img.size[1], img.size[0], 3),
+                                   'u1', ycbcr.tobytes())
 
-		        # Read superpixel indices
-                superpixel_file = spixel_folder + seq + '/' + str(frame_no).zfill(5) + '.pgm'
-                spixel_indices = np.array(cv2.imread(superpixel_file, cv2.IMREAD_UNCHANGED))
+    		        # Extract image features
+                    img_features = extract_image_features(I, frame_no)
 
-                spixel_indx = spixel_indices[None, :, :]
-                if all_frame_spixels is None:
-                    all_frame_spixels = spixel_indx
+    		        # Read superpixel indices
+                    superpixel_file = spixel_folder + seq + '/' + str(frame_no).zfill(5) + '.pgm'
+                    spixel_indices = np.array(cv2.imread(superpixel_file, cv2.IMREAD_UNCHANGED))
+
+                    spixel_indx = spixel_indices[None, :, :]
+                    if all_frame_spixels is None:
+                        all_frame_spixels = spixel_indx
+                    else:
+                        all_frame_spixels = np.append(all_frame_spixels, spixel_indx, axis=0)
+
+    	            # Convert to superpixel features
+                    features = convert_to_spixel_features(spixel_feat_net, img_features, spixel_indices)
+
+                    if all_frame_features is None:
+                        all_frame_features = features
+                    else:
+                        all_frame_features = np.append(all_frame_features, features, axis=1)
+
+                    # Prepare GT file
+                    gt_file = seq_gt_dir + str(frame_no).zfill(5) + '.png'
+                    rr = png.Reader(gt_file)
+                                        
+                    width, height, data, meta = rr.read()
+                    gt = np.vstack(itertools.imap(np.uint8, data))
+                    gt[gt==255] = 1
+                    if all_frame_gt is None:
+                        all_frame_gt = gt
+                    else:
+                        all_frame_gt = np.append(all_frame_gt, gt, axis=1)
+
+                    if frame_no == 0:
+                        spixel_gt = convert_to_spixel_gt(gt, spixel_indices)
+
+                    frame_no += 1
                 else:
-                    all_frame_spixels = np.append(all_frame_spixels, spixel_indx, axis=0)
+                    break
 
-	            # Convert to superpixel features
-                features = convert_to_spixel_features(spixel_feat_net, img_features, spixel_indices)
+            all_seqs_gt[seq] = all_frame_gt
+            all_seqs_spixel_gt[seq] = spixel_gt
+            all_seqs_spixels[seq] = all_frame_spixels
+            all_seqs_features[seq] = all_frame_features
 
-                if all_frame_features is None:
-                    all_frame_features = features
-                else:
-                    all_frame_features = np.append(all_frame_features, features, axis=1)
+    np.save(spixel_folder + '/all_seqs_spixels.npy', all_seqs_spixels)
+    np.save(feature_folder + '/all_seqs_features.npy', all_seqs_features)
+    np.save(gt_folder + '/all_seqs_gt.npy', all_seqs_gt)
+    np.save(spixel_gt_folder + '/all_seqs_spixel_gt.npy', all_seqs_spixel_gt)
 
+except:
+    print 'Error!!!'
 
-                # Prepare GT file
-                gt_file = seq_gt_dir + str(frame_no).zfill(5) + '.png'
-                r = png.Reader(gt_file)
-                width, height, data, meta = r.read()
-                gt = np.vstack(itertools.imap(np.uint8, data))
-                gt[gt==255] = 1
-                if all_frame_gt is None:
-                    all_frame_gt = gt
-                else:
-                    all_frame_gt = np.append(all_frame_gt, gt, axis=1)
-
-                if frame_no == 0:
-                    spixel_gt = convert_to_spixel_gt(gt, spixel_indices)
-
-                frame_no += 1
-            else:
-                break
-
-        all_seqs_gt[seq] = all_frame_gt
-        all_seqs_spixel_gt[seq] = spixel_gt
-        all_seqs_spixels[seq] = all_frame_spixels
-        all_seqs_features[seq] = all_frame_features
-
-np.save(spixel_folder + '/all_seqs_spixels.npy', all_seqs_spixels)
-np.save(feature_folder + '/all_seqs_features.npy', all_seqs_features)
-np.save(gt_folder + '/all_seqs_gt.npy', all_seqs_gt)
-np.save(spixel_gt_folder + '/all_seqs_spixel_gt.npy', all_seqs_spixel_gt)
+    import pdb
+    pdb.set_trace()
